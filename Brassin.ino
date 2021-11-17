@@ -54,7 +54,7 @@ enum tUserEventCode {
   // evenement utilisateurs
   evBP0 = 100,        //pousoir D5  (passage en mode clignotant)
   evLed0,             //Led de vie clignotante (LED_BUILTIN)
-  evLectureTemp,         // Lecture de la temperature (toute les 10 minutes)
+  evDs18x20,         // evenements internes du evHandelerDS18x20
 };
 
 
@@ -80,10 +80,11 @@ enum tUserEventCode {
 // TODO: utiliser l'exemple dans la lib OneWire pour avoir une lecture non bloquante ?
 
 
-#include <DS18B20.h>
+//#include <DS18B20.h>
 //instance du bus OneWire dedié aux DS18B20
-DS18B20 ds(pinOneWire);
-
+//DS18B20 ds(pinOneWire);
+#include "evHandlerDS18x20.h"
+evHandlerDS18x20 ds(pinOneWire);
 
 
 void setup() {
@@ -94,7 +95,7 @@ void setup() {
   Serial.println(F("\r\n\n" APP_NAME));
 
   Serial.print("Nombre de sonde temperature trouvée : ");
-  Serial.println(ds.getNumberOfDevices());
+//  Serial.println(ds.getNumberOfDevices());
 
 
   Serial.println("Bonjour ....");
@@ -110,31 +111,31 @@ void loop() {
   {
     case evInit: {
         Serial.println("Init");
-        Events.delayedPush(5000L, evLectureTemp); // 1er sequence de lecture dans 5 secondes
+//        Events.delayedPush(5000L, evLectureTemp); // 1er sequence de lecture dans 5 secondes
       }
       break;
 
-    // Gestion lecture de la temperature
-    case evLectureTemp: {
-
-        Events.delayedPush(delaiLectureTemp, evLectureTemp); // arme la prochaine lecture
-        Serial.println(F("evLectureTemp"));
-        ds.resetSearch();
-        Serial.print(F("Sonde1 : "));
-        if (ds.selectNext()) {
-          Serial.println(ds.getTempC());
-        } else {
-          Serial.println(F("Non trouvée"));
-        }
-        Serial.print(F("Sonde2 : "));
-        if (ds.selectNext()) {
-          Serial.println(ds.getTempC());
-        } else {
-          Serial.println(F("Not found"));
-        }
-      }
-      break;
-
+//    // Gestion lecture de la temperature
+//    case evLectureTemp: {
+//
+//        Events.delayedPush(delaiLectureTemp, evLectureTemp); // arme la prochaine lecture
+//        Serial.println(F("evLectureTemp"));
+//        ds.resetSearch();
+//        Serial.print(F("Sonde1 : "));
+//        if (ds.selectNext()) {
+//          Serial.println(ds.getTempC());
+//        } else {
+//          Serial.println(F("Non trouvée"));
+//        }
+//        Serial.print(F("Sonde2 : "));
+//        if (ds.selectNext()) {
+//          Serial.println(ds.getTempC());
+//        } else {
+//          Serial.println(F("Not found"));
+//        }
+//      }
+//      break;
+//
     // Evenement pousoir
     case evBP0:
       switch (Events.ext) {
