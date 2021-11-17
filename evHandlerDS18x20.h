@@ -9,30 +9,37 @@
 // The DallasTemperature library can do all this work for you!
 // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
+/*
+  e croquis utilise 11972 octets (37%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
+  Les variables globales utilisent 650 octets (31%) de mémoire dynamique, ce qui laisse 1398 octets pour les variables locales. Le maximum est de 2048 octets.
 
+
+*/
 typedef enum { evxDsNext, evxDsRead }  tevxDs;
 
 
 
 class evHandlerDS18x20 : private eventHandler_t, OneWire  {
   public:
-    evHandlerDS18x20(const uint8_t aPinNumber);
+    evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai);
     virtual void begin()  override;
     virtual void handle()  override;
     //    bool isOn()  {
     //      return ledOn;
     //    };
+    float  celsius;
+    uint8_t current;
 
   private:
-    uint8_t current;
+    uint16_t delai;
     uint8_t error;
     uint8_t addr[8];
     uint8_t type_s;
-    float  celsius;
 };
 
 
-evHandlerDS18x20::evHandlerDS18x20(const uint8_t aPinNumber) :
+evHandlerDS18x20::evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai) :
+  delai(aDelai),
   OneWire(aPinNumber)
 {
   //  pinMode(pinNumber, OUTPUT);
@@ -53,7 +60,11 @@ void evHandlerDS18x20::handle() {
     if ( !search(addr)) {
       Serial.println("No more addresses.");
       //    Serial.println();
-      begin();
+      //      begin();
+      reset_search();
+      //    delay(250);
+      current = 0;
+      Events.delayedPush(delai, evDs18x20, evxDsNext); // next read in 250ms
       return;
     }
     Serial.print("ROM =");
@@ -92,8 +103,9 @@ void evHandlerDS18x20::handle() {
     write(0x44, 1);        // start conversion, with parasite power on at the end
 
     Events.delayedPush(1000, evDs18x20, evxDsRead); // get coverted value in 1000ms ( > 750ms)
+    return;
   }
-  if (Events.ext == evxDsNext) {
+  if (Events.ext == evxDsRead) {
 
     uint8_t present = reset();
     select(addr);
@@ -131,13 +143,14 @@ void evHandlerDS18x20::handle() {
       //// default is 12 bit resolution, 750 ms conversion time
     }
     celsius = (float)raw / 16.0;
- //   fahrenheit = celsius * 1.8 + 32.0;
+    //   fahrenheit = celsius * 1.8 + 32.0;
     Serial.print("  Temperature = ");
     Serial.print(celsius);
     Serial.println(" Celsius, ");
-//    Serial.print(fahrenheit);
-//    Serial.println(" Fahrenheit");
-
+    //    Serial.print(fahrenheit);
+    //    Serial.println(" Fahrenheit");
+    Events.delayedPush(0, evDs18x20, evxDsNext); // get coverted value in 1000ms ( > 750ms)
+    return;
   }
-  Events.delayedPush(0, evDs18x20, evxDsNext); // get coverted value in 1000ms ( > 750ms)
+  return;
 }
