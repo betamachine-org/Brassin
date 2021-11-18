@@ -30,7 +30,7 @@
 #define APP_NAME "Brassin V1.0"
 
 // Constantes modifiable pour les durées en millisecondes
-const long delaiLectureTemp = 60L * 1000;
+const long delaiLectureTemp = 10L * 1000;
 
 // Numéro des pin hardware pour le bouton
 const int pinBouton1 = 5;
