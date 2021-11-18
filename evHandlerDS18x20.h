@@ -12,122 +12,131 @@
 /*
   e croquis utilise 11972 octets (37%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
   Les variables globales utilisent 650 octets (31%) de mémoire dynamique, ce qui laisse 1398 octets pour les variables locales. Le maximum est de 2048 octets.
+Le croquis utilise 11498 octets (35%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
+Les variables globales utilisent 474 octets (23%) de mémoire dynamique, ce qui laisse 1574 octets pour les variables locales. Le maximum est de 2048 octets.
 
 
 */
-typedef enum { evxDsNext, evxDsRead }  tevxDs;
+typedef enum { evxDsStart, evxDsSearch, evxDsRead, evxDsError }  tevxDs;
 
 
 
 class evHandlerDS18x20 : private eventHandler_t, OneWire  {
   public:
-    evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai);
+    evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai) :
+      delai(aDelai), OneWire(aPinNumber) {};
     virtual void begin()  override;
     virtual void handle()  override;
-    //    bool isOn()  {
-    //      return ledOn;
-    //    };
-    float  celsius;
+    float  celsius() {
+      return (float)raw / 16.0;;
+    }
+    float fahrenheit() {
+      return celsius() * 1.8 + 32.0;
+    }
     uint8_t current;
+    uint8_t error;
 
   private:
     uint16_t delai;
-    uint8_t error;
     uint8_t addr[8];
     uint8_t type_s;
+    int16_t raw;  // value
 };
 
 
-evHandlerDS18x20::evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai) :
-  delai(aDelai),
-  OneWire(aPinNumber)
-{
-  //  pinMode(pinNumber, OUTPUT);
-  //  setFrequence(frequence);
-};
+//evHandlerDS18x20::evHandlerDS18x20(const uint8_t aPinNumber, const uint16_t aDelai) :
+//  delai(aDelai),
+//  OneWire(aPinNumber)
+//{};
 
 void evHandlerDS18x20::begin() {
+  Events.delayedPush(delai, evDs18x20, evxDsStart); // relecture dans le delai imposé
   reset_search();
   //    delay(250);
   current = 0;
-  Events.delayedPush(250, evDs18x20, evxDsNext); // next read in 250ms
+  Events.delayedPush(250, evDs18x20, evxDsSearch, true); // next read in 250ms
 };
 
+// gestion des evenements
 void evHandlerDS18x20::handle() {
   if (Events.code != evDs18x20) return;
-  if (Events.ext == evxDsNext) {
-
+  if (Events.ext == evxDsStart) {
+    begin();
+    return;
+  }
+  if (Events.ext == evxDsSearch) {
     if ( !search(addr)) {
-      Serial.println("No more addresses.");
-      //    Serial.println();
-      //      begin();
-      reset_search();
-      //    delay(250);
-      current = 0;
-      Events.delayedPush(delai, evDs18x20, evxDsNext); // next read in 250ms
+      //Serial.println("No more addresses.");
+      if (current == 0) {
+        error = 1; // aucune sondes
+        Events.push( evDs18x20, evxDsError);
+      }
       return;
     }
-    Serial.print("ROM =");
-    for ( uint8_t i = 0; i < 8; i++) {
-      Serial.write(' ');
-      Serial.print(addr[i], HEX);
-    }
+    //   Serial.print("ROM =");
+    //   for ( uint8_t i = 0; i < 8; i++) {
+    //     Serial.write(' ');
+    //      Serial.print(addr[i], HEX);
+    //    }
     if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      error = 1;
+      //  Serial.println("CRC is not valid!");
+      error = 2;  // crc error
+      Events.push( evDs18x20, evxDsError);
       return;
     }
-    Serial.println();
     current++;
-
     // the first ROM byte indicates which chip
     switch (addr[0]) {
       case 0x10:
-        Serial.println("  Chip = DS18S20");  // or old DS1820
+        //  Serial.println("  Chip = DS18S20");  // or old DS1820
         type_s = 1;
         break;
       case 0x28:
-        Serial.println("  Chip = DS18B20");
+        //  Serial.println("  Chip = DS18B20");
         type_s = 0;
         break;
       case 0x22:
-        Serial.println("  Chip = DS1822");
+        //  Serial.println("  Chip = DS1822");
         type_s = 0;
         break;
       default:
-        Serial.println("Device is not a DS18x20 family device.");
+        //        Serial.println("Device is not a DS18x20 family device.");
+        error = 3; // bad device
+        Events.push( evDs18x20, evxDsError);
         return;
     }
+    error = 0;
     reset();
     select(addr);
     write(0x44, 1);        // start conversion, with parasite power on at the end
-
-    Events.delayedPush(1000, evDs18x20, evxDsRead); // get coverted value in 1000ms ( > 750ms)
+    //delay(1000);
+    Events.delayedPush(900, evDs18x20, evxDsRead, true); // get coverted value in 1000ms ( > 750ms)
     return;
   }
   if (Events.ext == evxDsRead) {
-
     uint8_t present = reset();
     select(addr);
     write(0xBE);         // Read Scratchpad
-    byte data[12];
-    Serial.print("  Data = ");
-    Serial.print(present, HEX);
-    Serial.print(" ");
+    byte data[9];
+    //    Serial.print("  Data = ");
+    //    Serial.print(present, HEX);
+    //    Serial.print(" ");
     for ( uint8_t i = 0; i < 9; i++) {           // we need 9 bytes
       data[i] = read();
-      Serial.print(data[i], HEX);
-      Serial.print(" ");
+      //      Serial.print(data[i], HEX);
+      //      Serial.print(" ");
     }
-    Serial.print(" CRC=");
-    Serial.print(OneWire::crc8(data, 8), HEX);
-    Serial.println();
+    //    Serial.print(" CRC=");
+    //    Serial.print(OneWire::crc8(data, 8), HEX);
+    //    Serial.println();
+    error = (OneWire::crc8(data, 8) == data[8]) ? 0 : 2; // erreur crc non bloquante
+    if (error) Events.push( evDs18x20, evxDsError);
 
     // Convert the data to actual temperature
     // because the result is a 16 bit signed integer, it should
     // be stored to an "int16_t" type, which is always 16 bits
     // even when compiled on a 32 bit processor.
-    int16_t raw = (data[1] << 8) | data[0];
+    raw = (data[1] << 8) | data[0];
     if (type_s) {
       raw = raw << 3; // 9 bit resolution default
       if (data[7] == 0x10) {
@@ -142,14 +151,7 @@ void evHandlerDS18x20::handle() {
       else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
       //// default is 12 bit resolution, 750 ms conversion time
     }
-    celsius = (float)raw / 16.0;
-    //   fahrenheit = celsius * 1.8 + 32.0;
-    Serial.print("  Temperature = ");
-    Serial.print(celsius);
-    Serial.println(" Celsius, ");
-    //    Serial.print(fahrenheit);
-    //    Serial.println(" Fahrenheit");
-    Events.delayedPush(0, evDs18x20, evxDsNext); // get coverted value in 1000ms ( > 750ms)
+    Events.delayedPush(0, evDs18x20, evxDsSearch, true); // recherche de l'erreur suivante
     return;
   }
   return;

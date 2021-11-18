@@ -50,12 +50,12 @@ const int pinOneWire = 8;
 */
 
 // Liste des evenements specifique a ce projet
-enum tUserEventCode {
+typedef enum  {
   // evenement utilisateurs
   evBP0 = 100,        //pousoir D5  (passage en mode clignotant)
   evLed0,             //Led de vie clignotante (LED_BUILTIN)
   evDs18x20,         // evenements internes du evHandelerDS18x20
-};
+} tUserEventCode;
 
 
 //  betaEvent.h est une aide pour construire les elements de base d'une programation evenementiel
@@ -75,7 +75,7 @@ enum tUserEventCode {
 #include <BetaEvents.h>
 
 // Sondes temperatures : DS18B20
-// On utilise la lib OneWire.h et DS18B20.h
+// On utilise la lib OneWire.h avec l'exemple
 // La lib DS18B20 lit en mode bloquant 750ms a chaque lecture donc 1,5 sec pour deux sondes
 // TODO: utiliser l'exemple dans la lib OneWire pour avoir une lecture non bloquante ?
 
@@ -84,7 +84,7 @@ enum tUserEventCode {
 //instance du bus OneWire dedié aux DS18B20
 //DS18B20 ds(pinOneWire);
 #include "evHandlerDS18x20.h"
-evHandlerDS18x20 ds(pinOneWire,10L*1000);
+evHandlerDS18x20 ds(pinOneWire, 10L * 1000);
 
 
 void setup() {
@@ -117,14 +117,21 @@ void loop() {
 
     case evDs18x20: {
         if (Events.ext == evxDsRead) {
+          if (ds.error) {
+            D_println(ds.error);
+          };
           D_println(ds.current);
-          D_println(ds.celsius);
+          D_println(ds.celsius());
+        }
+        if (Events.ext == evxDsError) {
+          Serial.print(F("Erreur : "));
+          D_println(ds.error);
         }
       }
       break;
 
 
-    
+
     // Evenement pousoir
     case evBP0:
       switch (Events.ext) {
