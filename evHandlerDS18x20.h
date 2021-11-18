@@ -12,8 +12,8 @@
 /*
   e croquis utilise 11972 octets (37%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
   Les variables globales utilisent 650 octets (31%) de mémoire dynamique, ce qui laisse 1398 octets pour les variables locales. Le maximum est de 2048 octets.
-Le croquis utilise 11498 octets (35%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
-Les variables globales utilisent 474 octets (23%) de mémoire dynamique, ce qui laisse 1574 octets pour les variables locales. Le maximum est de 2048 octets.
+  Le croquis utilise 11498 octets (35%) de l'espace de stockage de programmes. Le maximum est de 32256 octets.
+  Les variables globales utilisent 474 octets (23%) de mémoire dynamique, ce qui laisse 1574 octets pour les variables locales. Le maximum est de 2048 octets.
 
 
 */
@@ -33,6 +33,7 @@ class evHandlerDS18x20 : private eventHandler_t, OneWire  {
     float fahrenheit() {
       return celsius() * 1.8 + 32.0;
     }
+    uint8_t getNumberOfDevices();
     uint8_t current;
     uint8_t error;
 
@@ -155,4 +156,13 @@ void evHandlerDS18x20::handle() {
     return;
   }
   return;
+}
+
+uint8_t evHandlerDS18x20::getNumberOfDevices() {
+  uint8_t numberOfDevices = 0;
+  reset_search();
+  while (search(addr)) {
+    numberOfDevices++;
+  }
+  return numberOfDevices;
 }
