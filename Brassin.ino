@@ -36,6 +36,9 @@ const long delaiLectureTemp = 60L * 1000;
 const int pinBouton1 = 5;
 const int pinOneWire = 8;
 
+const int pinChauffe = 3;
+const int pinFrigo = 4;
+
 
 
 /* Evenements du Manager (voir EventsManager.h)
@@ -56,7 +59,7 @@ typedef enum  {
   evLed0,             //Led de vie clignotante (LED_BUILTIN)
   evDs18x20,         // evenements internes du evHandelerDS18x20
 } tUserEventCode;
-
+typedef enum  { moStable, moChauffe, moFrigo, moErreur } tMode;
 
 //  betaEvent.h est une aide pour construire les elements de base d'une programation evenementiel
 
@@ -95,13 +98,17 @@ void setup() {
   Serial.println(F("\r\n\n" APP_NAME));
 
   Serial.print("Nombre de sonde temperature trouvée : ");
-  //  Serial.println(ds.getNumberOfDevices());
+  Serial.println(ds.getNumberOfDevices());
 
 
   Serial.println("Bonjour ....");
 }
 
 bool sleepOk = true;
+
+
+tMode modeActuel = moStable;
+
 
 void loop() {
 
@@ -115,17 +122,34 @@ void loop() {
       }
       break;
 
+    // lecture des sondes
     case evDs18x20: {
         if (Events.ext == evxDsRead) {
           if (ds.error) {
             D_println(ds.error);
+            // TODO: gerer le moErreur;
+            break;
           };
           D_println(ds.current);
           D_println(ds.celsius());
-        }
-        if (Events.ext == evxDsError) {
-          Serial.print(F("Erreur : "));
-          D_println(ds.error);
+          // sonde 1 = brassin
+          if ( ds.current == 1) {
+            tMode mode = getMode(ds.celsius());
+            if (mode != modeActuel) {
+              modeActuel = mode;
+              switch (modeActuel) {
+                case moStable: Serial.println(F("===> Mode Stable")); break;
+                case moChauffe: Serial.println(F("===> Mode Chauffage")); break;
+                case moFrigo:  Serial.println(F("===> Mode Refrigeration")); break;
+                case moErreur: Serial.println(F("===> Mode Erreur")); break;
+              }
+              setMode(modeActuel);
+            }
+          }
+          if (Events.ext == evxDsError) {
+            Serial.print(F("Erreur : "));
+            D_println(ds.error);
+          }
         }
       }
       break;
@@ -163,4 +187,21 @@ void loop() {
       break;
 
   }
+}
+
+
+const float deltaTemperature = 0.5;
+const float baseTemperature = 24;
+
+tMode getMode(float aTemperature) {
+  float delta = aTemperature - baseTemperature;
+  D_println(delta);
+  if (abs(delta) < deltaTemperature) return (moStable);
+  if (delta > 0) return (moFrigo);
+  return (moChauffe);
+}
+
+void setMode(tMode aMode) {
+  digitalWrite(pinChauffe,(aMode == moChauffe) ? HIGH:LOW);
+  digitalWrite(pinFrigo,(aMode == moFrigo) ? HIGH:LOW);
 }
