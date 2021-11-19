@@ -55,11 +55,22 @@ const int pinFrigo = 4;
 // Liste des evenements specifique a ce projet
 typedef enum  {
   // evenement utilisateurs
-  evBP0 = 100,        //pousoir D5  (passage en mode clignotant)
-  evLed0,             //Led de vie clignotante (LED_BUILTIN)
-  evDs18x20,         // evenements internes du evHandelerDS18x20
+  evPoussoir = 100,       //(evBP0) pousoir D5  (passage en mode clignotant)
+  evLedDeVie,             //(evLed0) Led de vie clignotante (LED_BUILTIN)
+  evDs18x20,              // evenements internes du evHandelerDS18x20
+  evTemperatureBrassin,   //(evDsSonde1) temperature 1
+  evTemperatureExt,       //(evDsSonde2) temperature 2
+
 } tUserEventCode;
+
+#define evBP0             evPoussoir
+#define evLed0            evLedDeVie
+#define evDsSonde1        evTemperatureBrassin
+#define evDsSonde2        evTemperatureExt
+
+
 typedef enum  { moStable, moChauffe, moFrigo, moErreur } tMode;
+
 
 //  betaEvent.h est une aide pour construire les elements de base d'une programation evenementiel
 
@@ -123,6 +134,24 @@ void loop() {
       break;
 
     // lecture des sondes
+    case evTemperatureBrassin: {
+        D_println(Events.intExt / 100.0);
+        tMode mode = getMode(Events.intExt / 100.0);
+        if (mode != modeActuel) {
+          modeActuel = mode;
+          switch (modeActuel) {
+            case moStable: Serial.println(F("===> Mode Stable")); break;
+            case moChauffe: Serial.println(F("===> Mode Chauffage")); break;
+            case moFrigo:  Serial.println(F("===> Mode Refrigeration")); break;
+            case moErreur: Serial.println(F("===> Mode Erreur")); break;
+          }
+          setMode(modeActuel);
+        }
+
+      }
+
+      break;
+
     case evDs18x20: {
         if (Events.ext == evxDsRead) {
           if (ds.error) {
@@ -132,31 +161,18 @@ void loop() {
           };
           D_println(ds.current);
           D_println(ds.celsius());
-          // sonde 1 = brassin
-          if ( ds.current == 1) {
-            tMode mode = getMode(ds.celsius());
-            if (mode != modeActuel) {
-              modeActuel = mode;
-              switch (modeActuel) {
-                case moStable: Serial.println(F("===> Mode Stable")); break;
-                case moChauffe: Serial.println(F("===> Mode Chauffage")); break;
-                case moFrigo:  Serial.println(F("===> Mode Refrigeration")); break;
-                case moErreur: Serial.println(F("===> Mode Erreur")); break;
-              }
-              setMode(modeActuel);
-            }
-          }
-          if (Events.ext == evxDsError) {
-            Serial.print(F("Erreur : "));
-            D_println(ds.error);
-          }
+        }
+        if (Events.ext == evxDsError) {
+          Serial.print(F("Erreur : "));
+          D_println(ds.error);
         }
       }
       break;
 
 
 
-    // Evenement pousoir
+      // Evenement pousoir
+#if defined(evBP0)
     case evBP0:
       switch (Events.ext) {
         case evxBPDown:                           // push button 0 went down
@@ -172,7 +188,7 @@ void loop() {
 
       }
       break;
-
+#endif
 
     case evInString:
       if (Debug.trackTime < 2) {
@@ -202,6 +218,6 @@ tMode getMode(float aTemperature) {
 }
 
 void setMode(tMode aMode) {
-  digitalWrite(pinChauffe,(aMode == moChauffe) ? HIGH:LOW);
-  digitalWrite(pinFrigo,(aMode == moFrigo) ? HIGH:LOW);
+  digitalWrite(pinChauffe, (aMode == moChauffe) ? HIGH : LOW);
+  digitalWrite(pinFrigo, (aMode == moFrigo) ? HIGH : LOW);
 }

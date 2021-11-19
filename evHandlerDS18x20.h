@@ -152,6 +152,12 @@ void evHandlerDS18x20::handle() {
       else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
       //// default is 12 bit resolution, 750 ms conversion time
     }
+#ifdef evDsSonde1
+    if (current == 1) Events.push(evDsSonde1, 100L * raw / 16);
+#endif
+#ifdef evDsSonde2
+    if (current == 2) Events.push(evDsSonde2, 100L * raw / 16);
+#endif
     Events.delayedPush(0, evDs18x20, evxDsSearch, true); // recherche de la sonde suivante
     return;
   }
